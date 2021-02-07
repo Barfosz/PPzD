@@ -1,9 +1,24 @@
-﻿using System;
+﻿using FMODUnity;
+using System;
 using UnityEngine;
 
 #pragma warning disable CS0649
 
-public class Bandit : MonoBehaviour {
+public class Bandit : MonoBehaviour 
+{
+    int timer_attack = 0;
+    int time_attackSound = 100;
+    bool attackingSound = false;
+
+
+    int timer_move = 0;
+    int time_moveSound = 100;
+    bool moveSound = false;
+
+    int timer_heartbeat = 0;
+    int time_heartbeatSound = 500;
+    bool heartbeatSound = false;
+
     public event Action AttackedEvent = delegate { };
     public event Action DiedEvent = delegate { };
     public event Action JumpedEvent = delegate { };
@@ -44,7 +59,76 @@ public class Bandit : MonoBehaviour {
     }
 
     // Update is called once per frame
-    void Update() {
+    void Update() 
+    {
+        if (attackingSound)
+        {
+            if (timer_attack < time_attackSound)
+            {
+                timer_attack++;
+            }
+            else
+            {
+                
+                RuntimeManager.PlayOneShot("event:/Attack");
+                attackingSound = false;
+            }
+        }
+        else
+        {
+            timer_attack = 0;
+        }
+
+        if (moveSound)
+        {
+            if (timer_move < time_moveSound)
+            {
+                timer_move++;
+            }
+            else
+            {
+                RuntimeManager.PlayOneShot("event:/Footstep");
+                moveSound = false;
+                timer_move = 0;
+            }
+        }
+        else
+        {
+            timer_move = 0;
+        }
+
+        if (heartbeatSound)
+        {
+            if (timer_heartbeat < time_heartbeatSound)
+            {
+                timer_heartbeat++;
+            }
+            else
+            {
+                RuntimeManager.PlayOneShot("event:/Heartbeat");
+                heartbeatSound = false;
+                timer_heartbeat = 0;
+            }
+        }
+        else
+        {
+            timer_heartbeat = 0;
+        }
+
+        if (!heartbeatSound)
+        {
+            if (currentHealth <= 30)
+            {
+                heartbeatSound = true;
+            }
+
+            if (currentHealth <= 0)
+            {
+                heartbeatSound = false;
+            }
+        }
+
+
         if (input == null || m_isDead)
             return;
         //Check if character just landed on the ground
@@ -91,6 +175,7 @@ public class Bandit : MonoBehaviour {
         //Attack
         else if (input.Attack() && postAttackCooldown <= 0) {
             m_animator.SetTrigger("Attack");
+            attackingSound = true;
             postAttackCooldown = 0.9f;
             AttackedEvent();
         }
@@ -103,6 +188,7 @@ public class Bandit : MonoBehaviour {
             m_groundSensor.Disable(0.2f);
             JumpedEvent();
         } else if (input.Block() && postBlockCooldown <= 0) {
+            RuntimeManager.PlayOneShot("event:/Block");
             IsBlocking = true;
             m_combatIdle = true;
             postBlockCooldown = 1f;
@@ -110,13 +196,22 @@ public class Bandit : MonoBehaviour {
         }
         //Run
         if (Mathf.Abs(inputX) > Mathf.Epsilon)
+        {
+            moveSound = true;
             m_animator.SetInteger("AnimState", 2);
+        }
         //Combat Idle
         else if (m_combatIdle)
+        {
+            moveSound = false;
             m_animator.SetInteger("AnimState", 1);
+        }
         //Idle
         else
+        {
+            moveSound = false;
             m_animator.SetInteger("AnimState", 0);
+        }
     }
 
     public void TakeDamage(float damage) {
@@ -126,13 +221,18 @@ public class Bandit : MonoBehaviour {
             return;
         currentHealth -= damage;
         var healthPercentage = currentHealth / maxHealth;
+
+
+
         healthDisplay.SetPercentage(healthPercentage);
         if (currentHealth <= 0) {
             m_isDead = true;
             m_animator.SetTrigger("Death");
+            RuntimeManager.PlayOneShot("event:/Death");
             DiedEvent();
         } else {
             m_animator.SetTrigger("Hurt");
+            RuntimeManager.PlayOneShot("event:/Hurt");
         }
     }
 
